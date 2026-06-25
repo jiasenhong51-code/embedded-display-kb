@@ -38,6 +38,10 @@
 4. 每个主题页都尽量写清楚：是什么、为什么、怎么工作、和谁关联、怎么验证
 5. 任何结论最好都能回链到实验、日志或原始资料
 
+## Git 远程仓库
+
+远程仓库上传步骤见 [`08_references/git-remote-setup.md`](08_references/git-remote-setup.md)。
+
 ## 适合持续累积的核心主题
 
 - 显示链路与数据流
@@ -50,4 +54,3 @@
 - `DE`、`G2D`、`TCON`、`Panel` 的边界
 - `RGB`、`MCU I8080`、`MIPI DSI`、`SPI DBI` 的差异
 - `Panel` 初始化流程和时序约束
-
