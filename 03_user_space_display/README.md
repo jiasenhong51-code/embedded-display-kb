@@ -6,5 +6,5 @@
 
 - `libdrm-and-kms.md`
 - `video-decode-to-display.md`
+- `mpp-vo-drm-compositor.md`
 - `buffer-lifecycle.md`
-
