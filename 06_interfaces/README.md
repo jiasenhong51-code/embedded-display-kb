@@ -9,4 +9,4 @@
 - `mipi-dsi.md`
 - `spi-dbi.md`
 - `connector-concepts.md`
-
+- `hdmi-output-path.md`

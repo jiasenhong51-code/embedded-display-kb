@@ -5,6 +5,7 @@
 建议先建的主题：
 
 - `libdrm-and-kms.md`
+- `libdrm-atomic-commit-userspace.md`
 - `video-decode-to-display.md`
 - `mpp-vo-drm-compositor.md`
 - `buffer-lifecycle.md`

@@ -5,7 +5,9 @@
 建议先建的主题：
 
 - `de.md`
+- `de-channel-layer-fetch.md`
+- `de-blender-and-postprocess.md`
 - `g2d.md`
 - `tcon.md`
+- `tcon-output-timing.md`
 - `panel-init.md`
-

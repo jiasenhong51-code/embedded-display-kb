@@ -12,3 +12,7 @@
 - 结果
 - 下一步
 
+当前学习计划：
+
+- `drm-atomic-commit-learning-plan.md`
+- `drm-atomic-commit-trace-experiment.md`

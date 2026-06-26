@@ -18,6 +18,7 @@
 
 ## 目录说明
 
+- `LEARNING_PATH.md`：完整显示通路学习路线图
 - `00_inbox`：临时笔记、摘录、待整理想法
 - `01_concepts`：显示系统的通用概念
 - `02_application`：APP、LVGL、GUI 绘制与交互
@@ -28,6 +29,7 @@
 - `07_projects`：bring-up、调试、实验、问题单
 - `08_references`：资料索引、厂商文档、内核文档、视频教程链接
 - `09_glossary`：术语表
+- `10_debug_tools`：调试工具、trace、日志、硬件信号验证
 - `99_templates`：统一笔记模板
 
 ## 推荐写法

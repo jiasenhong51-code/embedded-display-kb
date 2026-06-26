@@ -5,7 +5,10 @@
 建议先建的主题：
 
 - `drm-core.md`
+- `atomic-commit-callflow.md`
+- `atomic-state-and-check.md`
+- `plane-update-path.md`
+- `crtc-flush-vblank-pageflip.md`
 - `software-driver-layer.md`
 - `hardware-driver-layer.md`
 - `drm-objects.md`
-
