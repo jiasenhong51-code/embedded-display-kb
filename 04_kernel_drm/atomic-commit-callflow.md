@@ -165,7 +165,7 @@ cleanup_planes
 ```text
 sunxi_crtc_atomic_flush()
   -> sunxi_de_atomic_flush()
-     -> RCQ / double buffer update
+     -> AHB / RCQ / double buffer update
      -> wait rcq finish 或 wait vblank/update_finish
 ```
 

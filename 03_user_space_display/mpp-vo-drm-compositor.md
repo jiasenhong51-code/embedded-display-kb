@@ -14,8 +14,8 @@ MPP VO
         -> libdrm
           -> /dev/dri/card0
             -> sunxi DRM/KMS driver
-              -> DE/display engine
-                -> CRTC/encoder/connector
+              -> DRM plane/CRTC/encoder/connector state
+              -> DE/TCON/output interface hardware
 ```
 
 核心结论：
@@ -520,6 +520,8 @@ if (-1 == pEntry->fbHandle)
 }
 ```
 
+这里的 `pEntry->fbHandle` 变量名容易误导。它不是 `drmPrimeFDToHandle()` 返回的 GEM handle，而是 `drmModeAddFB2()` 创建出来的 framebuffer object id，也就是后面要设置给 plane `FB_ID` 属性的值。
+
 这里要区分几个概念：
 
 ```text
@@ -555,6 +557,8 @@ pitches[2] = v_stride;
 offsets[2] = v_phaddr - y_phaddr;
 ```
 
+这份代码用物理地址差值计算 `offsets[]`，隐含前提是 Y/U/V 或 Y/UV 数据都位于同一个 dma-buf/GEM buffer 内。`offsets[]` 表示各平面相对 buffer 起始位置的偏移，不是新的物理地址。
+
 然后：
 
 ```c
@@ -570,7 +574,7 @@ drmModeAddFB2(
     0);
 ```
 
-后续 atomic commit 不是直接提交 dma-buf fd，而是提交 `pEntry->fbHandle`。
+后续 atomic commit 不是直接提交 dma-buf fd，而是提交 `pEntry->fbHandle` 保存的 framebuffer id。
 
 ### 4. 放入 readyFrameList
 
@@ -646,6 +650,8 @@ pixel blend mode / pixel blend mode1 / pixel blend mode2
 SRC_X / SRC_Y / SRC_W / SRC_H
 CRTC_X / CRTC_Y / CRTC_W / CRTC_H
 ```
+
+其中 `CRTC_ID`、`zpos`、`COLOR_SPACE`、`COLOR_RANGE`、`EOTF` 是 video channel/DRM plane 级别属性，这份代码只在 `local layer 0` 分支设置。`FB_ID1`、`SRC_X1`、`CRTC_X1` 这类带编号属性是 Allwinner 平台为了一个 DRM plane 内多 local layer 暴露的私有扩展，不是通用 KMS plane 的标准属性。
 
 含义：
 
@@ -1086,7 +1092,7 @@ DE/display engine 负责：
 颜色空间处理
 alpha blending
 zpos 合成
-最终输出到 CRTC
+输出到 TCON/接口硬件；在 DRM 模型里这条输出管线由 CRTC 表示
 ```
 
 ## 关联主题

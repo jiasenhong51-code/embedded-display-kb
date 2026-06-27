@@ -11,4 +11,4 @@
 - `crtc-flush-vblank-pageflip.md`
 - `software-driver-layer.md`
 - `hardware-driver-layer.md`
-- `drm-objects.md`
+- `../01_concepts/framebuffer-plane-crtc-connector.md`

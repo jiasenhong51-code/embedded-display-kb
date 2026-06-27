@@ -24,7 +24,7 @@ userspace drmModeAtomicCommit()
 对应笔记：
 
 - [`03_user_space_display/libdrm-atomic-commit-userspace.md`](../03_user_space_display/libdrm-atomic-commit-userspace.md)
-- [`03_user_space_display/buffer-lifecycle.md`](../03_user_space_display/buffer-lifecycle.md)
+- [`01_concepts/buffer-sync-and-fence.md`](../01_concepts/buffer-sync-and-fence.md)
 - [`03_user_space_display/mpp-vo-drm-compositor.md`](../03_user_space_display/mpp-vo-drm-compositor.md)
 
 要搞清楚：

@@ -21,6 +21,20 @@
 - `sunxi_crtc_event_proc()`
 - `sunxi_crtc_finish_page_flip()`
 
+源码入口：
+
+```text
+bsp/drivers/drm/sunxi_drm_crtc.c
+  -> sunxi_crtc_atomic_begin()
+  -> sunxi_crtc_atomic_flush()
+  -> sunxi_crtc_finish_page_flip()
+
+bsp/drivers/drm/sunxi_device/hardware/lowlevel_de/sunxi_de.c
+  -> sunxi_de_atomic_flush()
+  -> sunxi_de_event_proc()
+  -> de_update_ahb()
+```
+
 ## CRTC hook 注册点
 
 V861 CRTC helper funcs：
@@ -114,12 +128,51 @@ sunxi_crtc_finish_page_flip(crtc->dev, scrtc);
 
 ## DE flush 如何等待硬件
 
-`sunxi_de_atomic_flush()` 支持两类更新模式：
+`sunxi_de_atomic_flush()` 支持多代 DE 的更新模式：
 
 ```text
+AHB_MODE
 RCQ_MODE
 DOUBLE_BUFFER_MODE
 ```
+
+V861/DE203 使用的是：
+
+```text
+AHB_MODE
+```
+
+### AHB_MODE
+
+AHB mode 下，驱动先把 DE 各模块的新配置写到 shadow register buffer，并标记 dirty。
+
+普通 atomic flush 时：
+
+```text
+sunxi_de_atomic_flush()
+  -> sunxi_drm_crtc_prepare_vblank_event()
+  -> update_finish = DE_UPDATE_PENDING
+  -> wait_one_vblank/update_finish
+```
+
+真正把 shadow buffer 写进硬件寄存器的是事件路径：
+
+```text
+sunxi_de_event_proc()
+  -> de_update_ahb()
+  -> update_finish = DE_UPDATE_FINISHED
+```
+
+`de_update_ahb()` 会遍历 dirty `de_reg_block`：
+
+```text
+if block dirty:
+  memcpy_toio(reg_addr, vir_addr, size)
+```
+
+所以对 V861/DE203 来说，未超时的一次 blocking atomic commit 返回时，驱动已经等到 AHB 寄存器更新完成。但这不等于肉眼已经看到完整一帧，因为屏幕仍然按 TCON 时序逐行扫描。
+
+### RCQ_MODE
 
 RCQ 模式：
 
@@ -130,6 +183,8 @@ sunxi_drm_crtc_prepare_vblank_event()
 read_poll_timeout(check_update_finished)
 ```
 
+### DOUBLE_BUFFER_MODE
+
 Double buffer 模式：
 
 ```text
@@ -139,7 +194,67 @@ sunxi_drm_crtc_prepare_vblank_event()
 wait_one_vblank()
 ```
 
-也就是说，Sunxi 驱动虽然在 commit tail 里注释掉了 DRM helper 的 `wait_for_vblanks()`，但它在 DE flush 内部自己等待 RCQ 或 double buffer 更新完成。
+也就是说，Sunxi 驱动虽然在 commit tail 里注释掉了 DRM helper 的 `wait_for_vblanks()`，但它在 DE flush 内部根据当前 DE 版本的更新模式等待硬件更新完成。
+
+## Blocking Commit 与 commit 前等 VSync
+
+如果用户态调用 `drmModeAtomicCommit()` 时没有带：
+
+```text
+DRM_MODE_ATOMIC_NONBLOCK
+```
+
+它是 blocking commit。对 V861/DE203 AHB mode 来说：
+
+```text
+drmModeAtomicCommit()
+  -> sunxi_crtc_atomic_flush()
+  -> sunxi_de_atomic_flush()
+  -> 等待 vblank/event 路径执行 de_update_ahb()
+  -> update_finish = FINISHED
+  -> ioctl 返回
+```
+
+所以：
+
+```text
+blocking commit 返回
+  = 驱动认为这次 DE 寄存器更新已经完成，或等待超时后返回
+  != 屏幕已经完整显示完新一帧
+```
+
+如果用户态每次 commit 前先等一次 vsync：
+
+```text
+wait vsync N
+  -> build atomic request
+  -> blocking drmModeAtomicCommit()
+     -> 内部可能再等 vsync/update finish
+```
+
+这通常不是 atomic commit 正确性所必需的，反而可能多等一拍，增加一帧左右延迟。
+
+不过 commit 前等 vsync 可能还承担其他应用层功能：
+
+- 控制 compositor 线程一帧跑一次。
+- 监控 vblank 是否正常。
+- 处理 suspend/resume 后的 vblank 恢复。
+- 统计刷新率。
+
+如果使用 blocking commit，可以考虑：
+
+```text
+不在每次 commit 前额外等 vsync
+直接提交 blocking commit
+commit 返回后释放旧 buffer
+```
+
+如果希望异步调度，可以考虑：
+
+```text
+DRM_MODE_ATOMIC_NONBLOCK + DRM_MODE_PAGE_FLIP_EVENT
+用 page flip event 驱动下一帧提交和旧 buffer 释放
+```
 
 ## page flip event
 
@@ -153,13 +268,23 @@ atomic_begin:
 
 atomic_flush:
   sunxi_de_atomic_flush()
-  sunxi_crtc_finish_page_flip()
+    -> sunxi_drm_crtc_prepare_vblank_event()
+       设置 should_send_vblank = 1
 
-vblank/finish:
-  drm_crtc_send_vblank_event()
+vblank irq:
+  sunxi_crtc_event_proc()
+    -> sunxi_de_event_proc()
+    -> drm_crtc_handle_vblank()
+    -> 如果当前不是 busy:
+         sunxi_crtc_finish_page_flip()
+           -> drm_crtc_send_vblank_event()
+
+atomic_flush fallback:
+  如果 vblank 中断因为延迟等原因没有发送 event
+  sunxi_crtc_atomic_flush() 末尾也会调用 sunxi_crtc_finish_page_flip()
 ```
 
-驱动注释里也说明，理想情况下 page flip 应该在 vsync interrupt 中完成；如果中断延迟，则在 rcq_finished 后补做 page flip，确保当前帧 fence 被 signal。
+所以 page flip event 不是“ioctl 一进内核就返回”。它通常跟随 vblank/update finish 之后发送。驱动注释里也说明，理想情况下 page flip 应该在 vsync interrupt 中完成；如果中断延迟，则在 rcq_finished 或 atomic flush 收尾阶段补做 page flip，确保当前帧 fence 被 signal。
 
 ## 后续补充
 

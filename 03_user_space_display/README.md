@@ -8,4 +8,4 @@
 - `libdrm-atomic-commit-userspace.md`
 - `video-decode-to-display.md`
 - `mpp-vo-drm-compositor.md`
-- `buffer-lifecycle.md`
+- `../01_concepts/buffer-sync-and-fence.md`
